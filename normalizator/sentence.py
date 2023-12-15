@@ -16,7 +16,7 @@ class PosTagger:
     def initialize(self):
         if self.classla_pos_tagger is None:
             print("Creating tokenizer instance ...")
-            self.classla_pos_tagger = classla.Pipeline(lang="sl", tokenize_pretokenized=True)
+            self.classla_pos_tagger = classla.Pipeline(lang="sl", tokenize_pretokenized=True, processors='tokenize,pos')
 
 
     def pos_tag(self, toks):
