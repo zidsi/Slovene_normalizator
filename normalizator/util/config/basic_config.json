@@ -209,6 +209,5 @@
    "not_supported": {
       "normalize": "false"
    },
-   "tokenize_sentences": "false",
-   "as_sentence_list": "true"
+   "tokenize_sentences": "false"
 }
