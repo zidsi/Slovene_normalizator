@@ -4,7 +4,6 @@ from re import match
 import json
 
 from copy import deepcopy
-from git import Union
 from normalizator.configatron import boolify
 
 from normalizator.declinator import get_abbreviation_declension, get_abbreviation_declension_adj, get_abbreviation_declension_noun, get_number_declension, date_declension, get_hour_case
@@ -25,7 +24,7 @@ current_directory = os.path.dirname(os.path.abspath(__file__))
 @dataclass
 class NormalizedText:
     input_text:str
-    normalized_text:Union[str,list[str]]
+    normalized_text:str
     status:int
     logs:list[list[str]]
 
@@ -40,12 +39,9 @@ def normalize_text(text: str, custom_config=None)->NormalizedText:
     else:
         config=base_config
     tokenize_sentences=boolify(config["tokenize_sentences"])
-    as_sentence_list=boolify(config["as_sentence_list"] if "as_sentence_list" in config else False)
     # Skip normalization, if needed
     if not text or utils.skip_normalization(config, text):
-        # TODO: Split sentences if needed
-        response_text = [text] if as_sentence_list else text
-        return NormalizedText(input_text=text, normalized_text=response_text, status = 0, logs=[])
+        return NormalizedText(input_text=text, normalized_text=text, status = 0, logs=[])
 
     normalized_text = []
     if tokenize_sentences:
@@ -81,11 +77,9 @@ def normalize_text(text: str, custom_config=None)->NormalizedText:
         else:
             normalized_text.append(sentence)
     joined_text = " ".join(normalized_text)
-    result_text = normalized_text if as_sentence_list else joined_text
     if lowest_status==1 and any(char.isnumeric() for char in joined_text):
-        return NormalizedText(input_text=text, normalized_text=result_text, status = 2, logs=chng)
-
-    return NormalizedText(input_text=text, normalized_text=result_text, status = lowest_status, logs=chng)
+        return NormalizedText(input_text=text, normalized_text=joined_text, status = 2, logs=chng)
+    return NormalizedText(input_text=text, normalized_text=joined_text, status = lowest_status, logs=chng)
 
 def normalize_sentence(config, sentence: Sentence):
     sentence_length = sentence.length()
