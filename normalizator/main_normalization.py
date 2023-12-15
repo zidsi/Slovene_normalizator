@@ -4,6 +4,7 @@ from re import match
 import json
 
 from copy import deepcopy
+from git import Union
 from normalizator.configatron import boolify
 
 from normalizator.declinator import get_abbreviation_declension, get_abbreviation_declension_adj, get_abbreviation_declension_noun, get_number_declension, date_declension, get_hour_case
@@ -18,11 +19,18 @@ from normalizator.sentence import Sentence
 from normalizator.super_tools.word_tokenizer import word_tokenizer, spans
 import normalizator.super_tools.sent_split as splitter
 from normalizator.configatron import *
-
+from dataclasses import dataclass
 current_directory = os.path.dirname(os.path.abspath(__file__))
 
+@dataclass
+class NormalizedText:
+    input_text:str
+    normalized_text:Union[str,list[str]]
+    status:int
+    logs:list[list[str]]
+
 # normalizes input text sentence by sentence and returns normalized text as string
-def normalize_text(text: str, custom_config=None):
+def normalize_text(text: str, custom_config=None)->NormalizedText:
     with open(os.path.join(current_directory, "util/config/basic_config.json"), encoding="utf-8") as json_file:
         base_config=json.load(json_file)
 
@@ -31,12 +39,14 @@ def normalize_text(text: str, custom_config=None):
         config=configatron(base_config, custom_config)
     else:
         config=base_config
+    tokenize_sentences=boolify(config["tokenize_sentences"])
+    as_sentence_list=boolify(config["as_sentence_list"] if "as_sentence_list" in config else False)
     # Skip normalization, if needed
     if not text or utils.skip_normalization(config, text):
-        return {"input_text": text, "normalized_text": text, "status": 0, "logs": []}
+        # TODO: Split sentences if needed
+        response_text = [text] if as_sentence_list else text
+        return NormalizedText(input_text=text, normalized_text=response_text, status = 0, logs=[])
 
-    tokenize_sentences=boolify(config["tokenize_sentences"])
-    
     normalized_text = []
     if tokenize_sentences:
         try:
@@ -56,7 +66,6 @@ def normalize_text(text: str, custom_config=None):
             try:
                 sentence = Sentence(sentence)
                 normalized_text.append(normalize_sentence(config, sentence))
-                
                 if not lowest_status:
                     lowest_status=sentence.status
                 elif sentence.status!=lowest_status:
@@ -71,9 +80,12 @@ def normalize_text(text: str, custom_config=None):
                 sentence.status=-2
         else:
             normalized_text.append(sentence)
-    if lowest_status==1 and any(char.isnumeric() for char in " ".join(normalized_text)):
-        return {"input_text": text, "normalized_text": " ".join(normalized_text), "status": 2, "logs": chng}
-    return {"input_text": text, "normalized_text": " ".join(normalized_text), "status": lowest_status, "logs": chng}
+    joined_text = " ".join(normalized_text)
+    result_text = normalized_text if as_sentence_list else joined_text
+    if lowest_status==1 and any(char.isnumeric() for char in joined_text):
+        return NormalizedText(input_text=text, normalized_text=result_text, status = 2, logs=chng)
+
+    return NormalizedText(input_text=text, normalized_text=result_text, status = lowest_status, logs=chng)
 
 def normalize_sentence(config, sentence: Sentence):
     sentence_length = sentence.length()
